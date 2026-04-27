@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShareSparrow — Turn posts into graphics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sparrow: #c85a1a; --sparrow-light: #f0874a; --branch: #2c1f14; --muted: #7a6f6a;
+    --border: #e2d9d4; --bg: #faf7f4; --cloud: #ffffff; --leaf: #3a7d52;
+    --twitter-blue: #1d9bf0; --bsky-blue: #0085ff; --error: #c0392b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito', sans-serif; background: var(--bg); color: var(--branch); min-height: 100vh; display: flex; flex-direction: column; }
+  header { background: var(--cloud); border-bottom: 2px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .logo-text { font-size: 1.3rem; font-weight: 900; color: var(--branch); letter-spacing: -0.02em; }
+  .logo-text span { color: var(--sparrow); }
+  .tagline { font-size: 0.76rem; color: var(--muted); font-weight: 600; }
+  .app { display: grid; grid-template-columns: 320px 1fr; flex: 1; height: calc(100vh - 61px); overflow: hidden; }
+  .panel { background: var(--cloud); border-right: 2px solid var(--border); padding: 20px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
+  .section { display: flex; flex-direction: column; gap: 9px; }
+  .section-title { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 7px; }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .platform-hint { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .platform-hint-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-size: 0.74rem; font-weight: 800; border: 1.5px solid; }
+  .platform-hint-chip.tw { background: #e8f4fd; color: var(--twitter-blue); border-color: #b8ddf7; }
+  .platform-hint-chip.bs { background: #e6f2ff; color: var(--bsky-blue); border-color: #b3d4ff; }
+  .hint-or { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+  .url-row { display: flex; gap: 8px; }
+  .url-input { flex: 1; padding: 10px 13px; border: 2px solid var(--border); border-radius: 10px; font-family: 'Nunito', sans-serif; font-size: 0.83rem; background: var(--bg); color: var(--branch); outline: none; transition: border-color 0.15s; min-width: 0; }
+  .url-input:focus { border-color: var(--sparrow); }
+  .url-input::placeholder { color: var(--muted); }
+  .fetch-btn { background: var(--sparrow); color: white; border: none; border-radius: 10px; padding: 10px 16px; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 0.82rem; font-weight: 800; transition: background 0.15s; white-space: nowrap; flex-shrink: 0; }
+  .fetch-btn:hover { background: var(--sparrow-light); }
+  .fetch-btn:disabled { background: var(--muted); cursor: not-allowed; }
+  .platform-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 800; opacity: 0; transition: opacity 0.2s; width: fit-content; min-height: 22px; }
+  .platform-badge.show { opacity: 1; }
+  .platform-badge.twitter { background: #e8f4fd; color: var(--twitter-blue); }
+  .platform-badge.bluesky { background: #e6f2ff; color: var(--bsky-blue); }
+  .status-msg { font-size: 0.77rem; font-weight: 700; color: var(--muted); min-height: 16px; padding: 0 2px; }
+  .status-msg.error { color: var(--error); }
+  .status-msg.success { color: var(--leaf); }
+  .bg-tabs { display: flex; background: var(--bg); border: 2px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .bg-tab { flex: 1; padding: 8px 4px; border: none; background: transparent; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 0.75rem; font-weight: 800; color: var(--muted); transition: all 0.15s; }
+  .bg-tab.active { background: var(--sparrow); color: white; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+  .swatch { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: transform 0.12s; flex-shrink: 0; }
+  .swatch:hover { transform: scale(1.18); }
+  .swatch.selected { border-color: var(--branch); box-shadow: 0 0 0 2px white inset; }
+  .hex-row { display: flex; gap: 8px; align-items: center; }
+  .hex-input { flex: 1; padding: 8px 11px; border: 2px solid var(--border); border-radius: 8px; font-family: 'Nunito', sans-serif; font-size: 0.83rem; font-weight: 700; background: var(--bg); color: var(--branch); outline: none; transition: border-color 0.15s; }
+  .hex-input:focus { border-color: var(--sparrow); }
+  .color-preview { width: 32px; height: 32px; border-radius: 8px; border: 2px solid var(--border); flex-shrink: 0; }
+  .upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 18px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; background: var(--bg); display: block; }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: var(--sparrow); background: #fdf3ee; }
+  .upload-zone input { display: none; }
+  .upload-zone p { font-size: 0.8rem; font-weight: 700; color: var(--muted); pointer-events: none; }
+  .upload-zone p span { color: var(--sparrow); }
+  .photo-thumb { width: 100%; height: 60px; object-fit: cover; border-radius: 7px; margin-top: 8px; display: none; }
+  .ratio-pills { display: flex; gap: 8px; }
+  .ratio-pill { flex: 1; padding: 10px 4px; border: 2px solid var(--border); border-radius: 9px; background: var(--bg); cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 0.74rem; font-weight: 800; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 5px; transition: all 0.15s; }
+  .ratio-pill.active { background: #fdf3ee; border-color: var(--sparrow); color: var(--sparrow); }
+  .ratio-visual { background: currentColor; border-radius: 2px; opacity: 0.45; }
+  .action-btns { display: flex; gap: 8px; }
+  .btn { flex: 1; padding: 11px 8px; border: none; border-radius: 10px; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 0.82rem; font-weight: 800; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 5px; }
+  .btn-primary { background: var(--sparrow); color: white; }
+  .btn-primary:hover:not(:disabled) { background: var(--sparrow-light); transform: translateY(-1px); }
+  .btn-secondary { background: var(--bg); color: var(--branch); border: 2px solid var(--border); }
+  .btn-secondary:hover:not(:disabled) { border-color: var(--sparrow); color: var(--sparrow); }
+  .btn:disabled { opacity: 0.38; cursor: not-allowed; }
+  .divider { height: 1px; background: var(--border); flex-shrink: 0; }
+  .panel-footer { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border); font-size: 0.7rem; color: var(--muted); font-weight: 600; text-align: center; line-height: 1.7; }
+  .preview-area { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; gap: 16px; overflow: auto; background: repeating-linear-gradient(45deg, transparent, transparent 12px, rgba(0,0,0,0.018) 12px, rgba(0,0,0,0.018) 24px); }
+  .preview-label { font-size: 0.65rem; font-weight: 800; letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); }
+  .canvas-wrap { box-shadow: 0 16px 56px rgba(44,31,20,0.22); border-radius: 3px; overflow: hidden; line-height: 0; }
+  #previewCanvas { display: block; }
+  .empty-state { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; color: var(--muted); padding: 20px; max-width: 320px; }
+  .empty-state h3 { font-size: 1.05rem; font-weight: 800; color: var(--branch); opacity: 0.5; }
+  .empty-state p { font-size: 0.84rem; font-weight: 600; line-height: 1.6; opacity: 0.75; }
+  .spinner { width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.65s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="34" height="34" viewBox="0 0 36 36" fill="none">
+    <ellipse cx="20" cy="21" rx="10" ry="7" fill="#c85a1a"/>
+    <ellipse cx="18" cy="20" rx="7" ry="3.5" fill="#6b4c3b" transform="rotate(-15 18 20)"/>
+    <circle cx="28" cy="15" r="5.5" fill="#c85a1a"/>
+    <polygon points="33.5,14 37,15.5 33.5,17" fill="#f5c842"/>
+    <circle cx="30" cy="13.5" r="1.3" fill="#1a0a00"/>
+    <circle cx="30.5" cy="13" r="0.45" fill="white"/>
+    <polygon points="10,21 5,17.5 7.5,24 12,22.5" fill="#6b4c3b"/>
+    <ellipse cx="22" cy="23" rx="6" ry="3.5" fill="#f0874a" opacity="0.45"/>
+    <ellipse cx="27" cy="11.5" rx="4.5" ry="2" fill="#3d2b1f" transform="rotate(-20 27 11.5)"/>
+  </svg>
+  <span class="logo-text">Share<span>Sparrow</span></span>
+  <span class="tagline">· turn posts into graphics</span>
+</header>
+
+<div class="app">
+  <div class="panel">
+    <div class="section">
+      <div class="section-title">Paste a link</div>
+      <div class="platform-hint">
+        <span class="platform-hint-chip tw">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.259 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          Tweet
+        </span>
+        <span class="hint-or">or</span>
+        <span class="platform-hint-chip bs">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.908 0 3.08 0 3.768c0 .69.378 5.65.624 6.479.815 2.736 3.713 3.66 6.383 3.364.136-.02.275-.039.415-.056-.138.022-.276.04-.415.056-3.912.58-7.387 2.005-2.83 7.078 5.013 5.19 6.87-1.113 7.823-4.308.953 3.195 2.05 9.271 7.733 4.308 4.267-4.308 1.172-6.498-2.74-7.078a8.741 8.741 0 0 1-.415-.056c.14.017.279.036.415.056 2.67.297 5.568-.628 6.383-3.364.246-.828.624-5.79.624-6.478 0-.69-.139-1.861-.902-2.204-.659-.299-1.664-.62-4.3 1.24C16.046 4.748 13.087 8.687 12 10.8z"/></svg>
+          Bluesky post
+        </span>
+      </div>
+      <div class="url-row">
+        <input class="url-input" id="urlInput" type="text" placeholder="Paste URL here…" />
+        <button class="fetch-btn" id="fetchBtn" onclick="fetchPost()">Fetch →</button>
+      </div>
+      <div class="platform-badge" id="platformBadge"></div>
+      <div class="status-msg" id="statusMsg"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section hidden" id="avatarSection">
+      <div class="section-title">Avatar <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--muted);font-size:0.68rem;">· optional</span></div>
+      <p style="font-size:0.76rem;color:var(--muted);font-weight:600;line-height:1.5;">Twitter avatars can't load automatically. Right-click the profile photo on Twitter, copy image address, and paste it below.</p>
+      <div class="url-row">
+        <input class="url-input" id="avatarUrlInput" type="text" placeholder="https://pbs.twimg.com/…" />
+        <button class="fetch-btn" onclick="loadManualAvatar()" style="padding:10px 12px;">Load</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section">
+      <div class="section-title">Background</div>
+      <div class="bg-tabs">
+        <button class="bg-tab active" onclick="setBgMode('color')">Color</button>
+        <button class="bg-tab" onclick="setBgMode('hex')">Hex</button>
+        <button class="bg-tab" onclick="setBgMode('photo')">Photo</button>
+      </div>
+      <div id="bgColor">
+        <div class="swatches">
+          <div class="swatch selected" style="background:#e8453c" data-color="#e8453c" onclick="selectSwatch(this)"></div>
+          <div class="swatch" style="background:#1d9bf0" data-color="#1d9bf0" onclick="selectSwatch(this)"></div>
+          <div class="swatch" style="background:#0085ff" data-color="#0085ff" onclick="selectSwatch(this)"></div>
+          <div class="swatch" style="background:#2d6a4f" data-color="#2d6a4f" onclick="selectSwatch(this)"></div>
+          <div class="swatch" style="background:#f5c842" data-color="#f5c842" onclick="selectSwatch(this)"></div>
+          <div class="swatch" style="background:#c85a1a" data-color="#c85a1a" onclick="selectSwatch(this)"></div>
+          <div class="swatch" style="background:#6b4c3b" data-color="#6b4c3b" onclick="selectSwatch(this)"></div>
+          <div class="swatch" style="background:#1a1a2e" data-color="#1a1a2e" onclick="selectSwatch(this)"></div>
+          <div class="swatch" style="background:#9b2335" data-color="#9b2335" onclick="selectSwatch(this)"></div>
+          <div class="swatch" style="background:#ff6b6b" data-color="#ff6b6b" onclick="selectSwatch(this)"></div>
+          <div class="swatch" style="background:#845ec2" data-color="#845ec2" onclick="selectSwatch(this)"></div>
+          <div class="swatch" style="background:#222222" data-color="#222222" onclick="selectSwatch(this)"></div>
+        </div>
+      </div>
+      <div id="bgHex" class="hidden">
+        <div class="hex-row">
+          <input class="hex-input" id="hexInput" type="text" placeholder="#e8453c" maxlength="7" oninput="onHexInput()"/>
+          <div class="color-preview" id="hexPreview" style="background:#e8453c"></div>
+        </div>
+      </div>
+      <div id="bgPhoto" class="hidden">
+        <label class="upload-zone" id="uploadZone">
+          <input type="file" accept="image/*" id="photoInput" onchange="onPhotoUpload(event)"/>
+          <p>📷 <span>Click to upload</span> or drag a photo here</p>
+          <img class="photo-thumb" id="photoThumb" />
+        </label>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section">
+      <div class="section-title">Format</div>
+      <div class="ratio-pills">
+        <button class="ratio-pill active" onclick="setRatio('1:1')" id="ratio11">
+          <div class="ratio-visual" style="width:20px;height:20px;"></div>1:1
+        </button>
+        <button class="ratio-pill" onclick="setRatio('4:5')" id="ratio45">
+          <div class="ratio-visual" style="width:16px;height:20px;"></div>4:5
+        </button>
+        <button class="ratio-pill" onclick="setRatio('9:16')" id="ratio916">
+          <div class="ratio-visual" style="width:11px;height:20px;"></div>9:16
+        </button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section">
+      <div class="action-btns">
+        <button class="btn btn-primary" id="downloadBtn" onclick="downloadImage()" disabled>↓ Download</button>
+        <button class="btn btn-secondary" id="copyBtn" onclick="copyImage()" disabled>⎘ Copy</button>
+      </div>
+    </div>
+
+    <div class="panel-footer">🐦 ShareSparrow · Free forever · No watermarks</div>
+  </div>
+
+  <div class="preview-area">
+    <div class="empty-state" id="emptyState">
+      <svg width="64" height="64" viewBox="0 0 36 36" fill="none" opacity="0.25">
+        <ellipse cx="20" cy="21" rx="10" ry="7" fill="#c85a1a"/>
+        <ellipse cx="18" cy="20" rx="7" ry="3.5" fill="#6b4c3b" transform="rotate(-15 18 20)"/>
+        <circle cx="28" cy="15" r="5.5" fill="#c85a1a"/>
+        <polygon points="33.5,14 37,15.5 33.5,17" fill="#f5c842"/>
+        <polygon points="10,21 5,17.5 7.5,24 12,22.5" fill="#6b4c3b"/>
+        <ellipse cx="27" cy="11.5" rx="4.5" ry="2" fill="#3d2b1f" transform="rotate(-20 27 11.5)"/>
+      </svg>
+      <h3>Ready when you are</h3>
+      <p>Paste a link, pick a background, and download a crisp Instagram-ready graphic in seconds.</p>
+    </div>
+    <div class="preview-label hidden" id="previewLabel">Preview</div>
+    <div class="canvas-wrap hidden" id="canvasWrap">
+      <canvas id="previewCanvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<canvas id="exportCanvas" style="display:none"></canvas>
+
+<script>
+// ── PREVENT PAGE-LEVEL DRAG ──────────────────────────────────────
+['dragenter','dragover','dragleave','drop'].forEach(ev => {
+  document.addEventListener(ev, e => {
+    if (!e.target.closest('#uploadZone')) { e.preventDefault(); e.stopPropagation(); }
+  }, false);
+});
+
+// ── STATE ────────────────────────────────────────────────────────
+const state = {
+  platform: null, bgMode: 'color', bgColor: '#e8453c',
+  bgImage: null, ratio: '1:1', post: null, avatarImg: null, hasContent: false,
+};
+
+const SIZES = { '1:1':{w:1080,h:1080}, '4:5':{w:1080,h:1350}, '9:16':{w:1080,h:1920} };
+const DPR = window.devicePixelRatio || 1;
+const PREVIEW_CSS_W = 520;
+const WORKER_URL = 'https://sharesparrow-avatar.josh-a94.workers.dev';
+const AVATAR_PROXY = WORKER_URL + '/?url=';
+
+// ── PLATFORM DETECT ──────────────────────────────────────────────
+function detectPlatform(url) {
+  if (/twitter\.com|x\.com/i.test(url)) return 'twitter';
+  if (/bsky\.app/i.test(url)) return 'bluesky';
+  return null;
+}
+
+function showPlatformBadge(platform) {
+  const b = document.getElementById('platformBadge');
+  if (!platform) { b.classList.remove('show'); return; }
+  b.className = 'platform-badge show ' + platform;
+  b.innerHTML = platform === 'twitter' ? '𝕏 &nbsp;X / Twitter detected' : '🦋 &nbsp;Bluesky detected';
+}
+
+document.getElementById('urlInput').addEventListener('input', function() {
+  state.platform = detectPlatform(this.value);
+  showPlatformBadge(state.platform);
+});
+document.getElementById('urlInput').addEventListener('keydown', e => { if (e.key === 'Enter') fetchPost(); });
+
+// ── FETCH ────────────────────────────────────────────────────────
+async function fetchPost() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) return;
+  const platform = detectPlatform(url);
+  if (!platform) { setStatus('Please paste a Twitter/X or Bluesky URL', 'error'); return; }
+  state.platform = platform;
+  showPlatformBadge(platform);
+
+  const btn = document.getElementById('fetchBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  setStatus('Fetching post…', '');
+  state.avatarImg = null;
+
+  try {
+    if (platform === 'twitter') await fetchTwitter(url);
+    else await fetchBluesky(url);
+    setStatus('✓ Got it! Pick a background and download.', 'success');
+    state.hasContent = true;
+    showPreview(); enableActions(); renderCanvas();
+  } catch(e) {
+    setStatus('✗ ' + (e.message || 'Could not fetch. Check the URL and try again.'), 'error');
+  }
+  btn.disabled = false; btn.innerHTML = 'Fetch →';
+}
+
+// ── TWITTER ──────────────────────────────────────────────────────
+async function fetchTwitter(url) {
+  const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(url)}&omit_script=true`;
+
+  // Route oEmbed through our Worker which has no CORS restrictions
+  let json = null;
+  try {
+    const res = await fetch(AVATAR_PROXY + encodeURIComponent(oembedUrl));
+    if (res.ok) {
+      const text = await res.text();
+      const parsed = JSON.parse(text);
+      if (parsed.author_name) json = parsed;
+    }
+  } catch(e) {}
+
+  // Fallback proxies
+  if (!json) {
+    const proxies = [
+      () => fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(oembedUrl)}`).then(r => r.json()).then(d => JSON.parse(d.contents)),
+      () => fetch(`https://corsproxy.io/?${encodeURIComponent(oembedUrl)}`).then(r => r.json()),
+    ];
+    for (const attempt of proxies) {
+      try {
+        const result = await Promise.race([
+          attempt(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000))
+        ]);
+        if (result && result.author_name) { json = result; break; }
+      } catch(e) { continue; }
+    }
+  }
+
+  if (!json) throw new Error('Could not fetch tweet. Check the URL and try again.');
+
+  const hMatch = url.match(/(?:twitter\.com|x\.com)\/([^/?#]+)\/status/i);
+  const handle = '@' + (hMatch ? hMatch[1] : json.author_name.toLowerCase().replace(/\s+/g,''));
+
+  const doc = new DOMParser().parseFromString(json.html || '<p></p>', 'text/html');
+  let text = '';
+  doc.querySelectorAll('p').forEach(p => {
+    let t = p.innerHTML
+      .replace(/<a[^>]*href="https?:\/\/t\.co\/[^"]*"[^>]*>.*?<\/a>/gi, '')
+      .replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+      .trim();
+    if (t) text += (text ? '\n\n' : '') + t;
+  });
+
+  state.post = { name: json.author_name, handle, text: text || '(Could not extract tweet text)' };
+
+  // Look up avatar via Worker using the handle
+  const username = handle.replace('@','');
+  try {
+    const avatarRes = await fetch(`${WORKER_URL}/?handle=${encodeURIComponent(username)}`);
+    const avatarData = await avatarRes.json();
+    console.log('🐦 Avatar lookup result:', avatarData);
+    if (avatarData.avatar_url) {
+      loadAvatarFromSources([AVATAR_PROXY + encodeURIComponent(avatarData.avatar_url)]);
+    } else {
+      state.avatarImg = null;
+      renderCanvas();
+    }
+  } catch(e) {
+    console.log('🐦 Avatar lookup failed:', e.message);
+    state.avatarImg = null;
+    renderCanvas();
+  }
+}
+
+// ── BLUESKY ──────────────────────────────────────────────────────
+async function fetchBluesky(url) {
+  const match = url.match(/bsky\.app\/profile\/([^/]+)\/post\/([^/?#]+)/);
+  if (!match) throw new Error('Invalid Bluesky URL — expected bsky.app/profile/handle/post/id');
+  const [, actor, rkey] = match;
+
+  const profileRes = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(actor)}`);
+  if (!profileRes.ok) throw new Error('Could not load Bluesky profile');
+  const profile = await profileRes.json();
+
+  const uri = `at://${profile.did}/app.bsky.feed.post/${rkey}`;
+  const postRes = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?uris=${encodeURIComponent(uri)}`);
+  if (!postRes.ok) throw new Error('Could not load post');
+  const pd = await postRes.json();
+  if (!pd.posts?.length) throw new Error('Post not found');
+
+  state.post = { name: profile.displayName || actor, handle: '@' + actor, text: pd.posts[0].record?.text || '' };
+  document.getElementById('avatarSection').classList.add('hidden');
+
+  if (profile.avatar) {
+    loadAvatarFromSources([AVATAR_PROXY + encodeURIComponent(profile.avatar)]);
+  }
+}
+
+// ── AVATAR: try each source as a blob fetch ───────────────────────
+// wsrv.nl is an image proxy that sets correct CORS headers
+async function loadAvatarFromSources(sources) {
+  console.log('🐦 Trying avatar sources:', sources);
+  for (const src of sources) {
+    try {
+      console.log('🐦 Fetching:', src);
+      const res = await fetch(src, { mode: 'cors' });
+      console.log('🐦 Response:', res.status, res.headers.get('content-type'));
+      if (!res.ok) { console.log('🐦 Not OK, skipping'); continue; }
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.startsWith('image')) { console.log('🐦 Not image content-type:', contentType, '— trying anyway'); }
+      const blob = await res.blob();
+      console.log('🐦 Blob size:', blob.size, 'type:', blob.type);
+      if (blob.size < 100) { console.log('🐦 Blob too small, skipping'); continue; }
+      const objectUrl = URL.createObjectURL(blob);
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = () => { console.log('🐦 Image loaded!', img.width, img.height); resolve(); };
+        img.onerror = (e) => { console.log('🐦 Image error:', e); reject(e); };
+        img.src = objectUrl;
+      });
+      state.avatarImg = img;
+      renderCanvas();
+      return;
+    } catch(e) {
+      console.log('🐦 Source failed:', src, e.message);
+      continue;
+    }
+  }
+  console.log('🐦 All avatar sources failed, using placeholder');
+  state.avatarImg = null;
+  renderCanvas();
+}
+
+// ── MANUAL AVATAR ────────────────────────────────────────────────
+async function loadManualAvatar() {
+  const url = document.getElementById('avatarUrlInput').value.trim();
+  if (!url) return;
+  const sources = [
+    `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=200&h=200&output=jpg`,
+    `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=200&h=200`,
+  ];
+  loadAvatarFromSources(sources);
+}
+
+// ── BACKGROUND ───────────────────────────────────────────────────
+function setBgMode(mode) {
+  state.bgMode = mode;
+  document.querySelectorAll('.bg-tab').forEach((t,i) => t.classList.toggle('active', ['color','hex','photo'][i] === mode));
+  document.getElementById('bgColor').classList.toggle('hidden', mode !== 'color');
+  document.getElementById('bgHex').classList.toggle('hidden', mode !== 'hex');
+  document.getElementById('bgPhoto').classList.toggle('hidden', mode !== 'photo');
+  if (state.hasContent) renderCanvas();
+}
+
+function selectSwatch(el) {
+  document.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected'); state.bgColor = el.dataset.color;
+  if (state.hasContent) renderCanvas();
+}
+
+function onHexInput() {
+  let val = document.getElementById('hexInput').value.trim();
+  if (!val.startsWith('#')) val = '#' + val;
+  document.getElementById('hexPreview').style.background = val;
+  if (/^#[0-9A-Fa-f]{6}$/.test(val)) { state.bgColor = val; if (state.hasContent) renderCanvas(); }
+}
+
+function onPhotoUpload(e) { const f = e.target.files[0]; if (f) handlePhotoFile(f); }
+
+function handlePhotoFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      state.bgImage = img;
+      const thumb = document.getElementById('photoThumb');
+      thumb.src = ev.target.result; thumb.style.display = 'block';
+      document.querySelector('#uploadZone p').textContent = '✓ Photo loaded — click to change';
+      if (state.hasContent) renderCanvas();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) handlePhotoFile(f);
+});
+
+// ── RATIO ────────────────────────────────────────────────────────
+function setRatio(r) {
+  state.ratio = r;
+  document.querySelectorAll('.ratio-pill').forEach(p => p.classList.remove('active'));
+  document.getElementById({'1:1':'ratio11','4:5':'ratio45','9:16':'ratio916'}[r]).classList.add('active');
+  if (state.hasContent) renderCanvas();
+}
+
+// ── RENDER (HiDPI) ───────────────────────────────────────────────
+function renderCanvas() {
+  if (!state.hasContent || !state.post) return;
+  const { w: srcW, h: srcH } = SIZES[state.ratio];
+  const cssW = PREVIEW_CSS_W;
+  const cssH = Math.round(cssW * srcH / srcW);
+  const physW = Math.round(cssW * DPR);
+  const physH = Math.round(cssH * DPR);
+
+  const canvas = document.getElementById('previewCanvas');
+  canvas.width = physW; canvas.height = physH;
+  canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(DPR, DPR);
+  drawGraphic(ctx, cssW, cssH);
+}
+
+// ── DRAW ─────────────────────────────────────────────────────────
+function drawGraphic(ctx, W, H) {
+  if (!state.post) return;
+  const { name, handle, text } = state.post;
+
+  // BG
+  if (state.bgMode === 'photo' && state.bgImage) {
+    const img = state.bgImage;
+    // Fill background with selected color first (shows as padding in non-square formats)
+    ctx.fillStyle = state.bgColor;
+    ctx.fillRect(0, 0, W, H);
+    // Draw photo as a centered square
+    const squareSize = Math.min(W, H);
+    const imgSize = Math.min(img.width, img.height);
+    const sx = (img.width - imgSize) / 2;
+    const sy = (img.height - imgSize) / 2;
+    const dx = (W - squareSize) / 2;
+    const dy = (H - squareSize) / 2;
+    ctx.drawImage(img, sx, sy, imgSize, imgSize, dx, dy, squareSize, squareSize);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(dx, dy, squareSize, squareSize);
+  } else {
+    ctx.fillStyle=state.bgColor; ctx.fillRect(0,0,W,H);
+  }
+
+  // CARD GEOMETRY
+  const cardPadX = W * 0.072;
+  const cardW    = W - cardPadX * 2;
+  const cPad     = W * 0.058;
+  const avatarSz = W * 0.1;
+  const textSz   = Math.max(12, W * 0.031);
+  const nameSz   = textSz;
+  const handleSz = textSz * 0.84;
+  const lineH    = textSz * 1.62;
+  const nameLineH = nameSz * 1.2;
+  const maxTW    = cardW - cPad * 2;
+  const iconSz   = W * 0.038;
+  const iconX    = cardW - cPad - iconSz;
+
+  // Pre-calculate name lines so we can size the card correctly
+  ctx.font = `bold ${nameSz}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+  const maxNameW = (cardW - cPad - avatarSz - W*0.024 - iconSz - W*0.05);
+  const nameLines = [];
+  if (ctx.measureText(name).width <= maxNameW) {
+    nameLines.push(name);
+  } else {
+    const words = name.split(' ');
+    let line1 = '', line2 = '';
+    for (const word of words) {
+      const test = line1 ? line1 + ' ' + word : word;
+      if (ctx.measureText(test).width <= maxNameW) line1 = test;
+      else line2 = line2 ? line2 + ' ' + word : word;
+    }
+    nameLines.push(line1);
+    if (line2) nameLines.push(line2);
+  }
+
+  // Header height = avatar OR name+handle stack, whichever is taller
+  const nameTotalH = nameLines.length * nameLineH + handleSz * 1.4;
+  const headerH = Math.max(avatarSz, nameTotalH) + nameSz * 0.3;
+
+  ctx.font = `${textSz}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+  const lines = wrapText(ctx, text, maxTW);
+  const textH  = lines.length * lineH;
+  const cardH  = cPad + headerH + textSz*0.8 + textH + cPad;
+  const cardX  = cardPadX;
+  const cardY  = (H - cardH) / 2;
+  const cardR  = W * 0.033;
+  const absIconX = cardX + cardW - cPad - iconSz;
+  const absIconY = cardY + cPad + avatarSz * 0.05;
+
+  // SHADOW + CARD
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,0.2)'; ctx.shadowBlur=W*0.04; ctx.shadowOffsetY=W*0.015;
+  roundRect(ctx,cardX,cardY,cardW,cardH,cardR); ctx.fillStyle='#fff'; ctx.fill();
+  ctx.restore();
+  roundRect(ctx,cardX,cardY,cardW,cardH,cardR); ctx.fillStyle='#fff'; ctx.fill();
+
+  // AVATAR
+  const ax=cardX+cPad, ay=cardY+cPad;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(ax+avatarSz/2, ay+avatarSz/2, avatarSz/2, 0, Math.PI*2); ctx.clip();
+  if (state.avatarImg) {
+    ctx.drawImage(state.avatarImg, ax, ay, avatarSz, avatarSz);
+  } else if (state.platform === 'twitter') {
+    // Black circle with official X letterform
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(ax, ay, avatarSz, avatarSz);
+    ctx.save();
+    const xPad = avatarSz * 0.2; // padding inside circle
+    const xSize = avatarSz - xPad * 2;
+    ctx.translate(ax + xPad, ay + xPad);
+    const xs = xSize / 24;
+    ctx.scale(xs, xs);
+    ctx.fillStyle = '#ffffff';
+    const xPath = new Path2D('M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.259 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z');
+    ctx.fill(xPath);
+    ctx.restore();
+  } else {
+    // Colored circle with initial for Bluesky
+    ctx.fillStyle = state.bgColor;
+    ctx.fillRect(ax, ay, avatarSz, avatarSz);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.font = `bold ${avatarSz*0.44}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText((name||'?').charAt(0).toUpperCase(), ax+avatarSz/2, ay+avatarSz/2);
+  }
+  ctx.restore();
+
+  // NAME (use pre-calculated nameLines from geometry section)
+  const nx = ax + avatarSz + W*0.024;
+  const nameStartY = cardY + cPad + avatarSz*0.08;
+  ctx.font=`bold ${nameSz}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+  ctx.fillStyle='#0f1419'; ctx.textAlign='left'; ctx.textBaseline='top';
+  nameLines.forEach((l, i) => ctx.fillText(l, nx, nameStartY + i * nameLineH));
+
+  // HANDLE
+  ctx.font=`${handleSz}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+  ctx.fillStyle='#536471'; ctx.textBaseline='top';
+  ctx.fillText(handle, nx, nameStartY + nameLines.length * nameLineH + nameSz*0.15);
+
+  // PLATFORM ICON
+  if (state.platform === 'twitter') {
+    drawXLogo(ctx, absIconX, absIconY, iconSz);
+  } else {
+    drawBskyLogo(ctx, absIconX, absIconY, iconSz);
+  }
+
+  // DIVIDER — always sits below full header
+  const divY = cardY + cPad + headerH;
+  ctx.strokeStyle='#eff3f4'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(cardX+cPad,divY); ctx.lineTo(cardX+cardW-cPad,divY); ctx.stroke();
+
+  // POST TEXT
+  ctx.font=`${textSz}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+  ctx.fillStyle='#0f1419'; ctx.textAlign='left'; ctx.textBaseline='top';
+  const tY = divY + textSz*0.65;
+  lines.forEach((line,i) => ctx.fillText(line, cardX+cPad, tY+i*lineH));
+
+  // WATERMARK
+  ctx.font=`600 ${W*0.018}px -apple-system, sans-serif`;
+  ctx.fillStyle='rgba(255,255,255,0.42)'; ctx.textAlign='right'; ctx.textBaseline='bottom';
+  ctx.fillText('ShareSparrow.com', W-W*0.022, H-W*0.018);
+}
+
+// ── X LOGO: actual X letterform path (matches Twitter/X brand) ────
+// Drawn from the official SVG path, scaled to fit bounding box
+function drawXLogo(ctx, x, y, size) {
+  ctx.save();
+  ctx.translate(x, y);
+  const s = size / 24;
+  ctx.scale(s, s);
+  ctx.fillStyle = '#000000';
+  // Official X/Twitter logo path (24x24 viewbox)
+  const path = new Path2D('M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.259 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z');
+  ctx.fill(path);
+  ctx.restore();
+}
+
+// ── BLUESKY BUTTERFLY LOGO ────────────────────────────────────────
+function drawBskyLogo(ctx, x, y, size) {
+  ctx.save();
+  ctx.translate(x, y);
+  const s = size / 24;
+  ctx.scale(s, s);
+  ctx.fillStyle = '#0085ff';
+  const path = new Path2D('M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.908 0 3.08 0 3.768c0 .69.378 5.65.624 6.479.815 2.736 3.713 3.66 6.383 3.364.136-.02.275-.039.415-.056-.138.022-.276.04-.415.056-3.912.58-7.387 2.005-2.83 7.078 5.013 5.19 6.87-1.113 7.823-4.308.953 3.195 2.05 9.271 7.733 4.308 4.267-4.308 1.172-6.498-2.74-7.078a8.741 8.741 0 0 1-.415-.056c.14.017.279.036.415.056 2.67.297 5.568-.628 6.383-3.364.246-.828.624-5.79.624-6.478 0-.69-.139-1.861-.902-2.204-.659-.299-1.664-.62-4.3 1.24C16.046 4.748 13.087 8.687 12 10.8z');
+  ctx.fill(path);
+  ctx.restore();
+}
+
+// ── UTILS ────────────────────────────────────────────────────────
+function wrapText(ctx, text, maxW) {
+  const lines = [];
+  text.split('\n').forEach(para => {
+    if (!para.trim()) { lines.push(''); return; }
+    let cur = '';
+    para.split(' ').forEach(word => {
+      const test = cur ? cur+' '+word : word;
+      if (ctx.measureText(test).width <= maxW) cur = test;
+      else { if (cur) lines.push(cur); cur = word; }
+    });
+    if (cur) lines.push(cur);
+  });
+  return lines;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+// ── EXPORT ───────────────────────────────────────────────────────
+function getExportCanvas() {
+  const { w, h } = SIZES[state.ratio];
+  const c = document.getElementById('exportCanvas');
+  c.width=w; c.height=h;
+  const ctx = c.getContext('2d');
+  const scale = w / PREVIEW_CSS_W;
+  ctx.scale(scale, scale);
+  drawGraphic(ctx, PREVIEW_CSS_W, PREVIEW_CSS_W * h/w);
+  return c;
+}
+
+function downloadImage() {
+  const c = getExportCanvas();
+  const a = document.createElement('a');
+  a.download = `sharesparrow-${state.ratio.replace(':','x')}.png`;
+  a.href = c.toDataURL('image/png'); a.click();
+}
+
+async function copyImage() {
+  try {
+    const c = getExportCanvas();
+    c.toBlob(async blob => {
+      await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+      const btn = document.getElementById('copyBtn');
+      const orig = btn.innerHTML; btn.innerHTML = '✓ Copied!';
+      setTimeout(() => btn.innerHTML = orig, 2000);
+    });
+  } catch(e) { alert('Copy not supported here — use Download instead.'); }
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg; el.className = 'status-msg' + (type ? ' '+type : '');
+}
+
+function showPreview() {
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('previewLabel').classList.remove('hidden');
+  document.getElementById('canvasWrap').classList.remove('hidden');
+}
+
+function enableActions() {
+  document.getElementById('downloadBtn').disabled = false;
+  document.getElementById('copyBtn').disabled = false;
+}
+</script>
+</body>
+</html>
