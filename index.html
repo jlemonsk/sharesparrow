@@ -253,7 +253,11 @@ const state = {
 
 const SIZES = { '1:1':{w:1080,h:1080}, '4:5':{w:1080,h:1350}, '9:16':{w:1080,h:1920} };
 const DPR = window.devicePixelRatio || 1;
-const PREVIEW_CSS_W = Math.min(520, window.innerWidth - 48);
+function getPreviewW() {
+  const area = document.getElementById('previewArea');
+  const available = area ? area.clientWidth - 48 : window.innerWidth - 48;
+  return Math.min(520, Math.max(200, available));
+}
 const WORKER_URL = 'https://sharesparrow-avatar.josh-a94.workers.dev';
 const AVATAR_PROXY = WORKER_URL + '/?url=';
 
@@ -504,7 +508,7 @@ function setRatio(r) {
 function renderCanvas() {
   if (!state.hasContent || !state.post) return;
   const { w: srcW, h: srcH } = SIZES[state.ratio];
-  const cssW = PREVIEW_CSS_W;
+  const cssW = getPreviewW();
   const cssH = Math.round(cssW * srcH / srcW);
   const physW = Math.round(cssW * DPR);
   const physH = Math.round(cssH * DPR);
@@ -721,9 +725,10 @@ function getExportCanvas() {
   const c = document.getElementById('exportCanvas');
   c.width=w; c.height=h;
   const ctx = c.getContext('2d');
-  const scale = w / PREVIEW_CSS_W;
+  const previewW = getPreviewW();
+  const scale = w / previewW;
   ctx.scale(scale, scale);
-  drawGraphic(ctx, PREVIEW_CSS_W, PREVIEW_CSS_W * h/w);
+  drawGraphic(ctx, previewW, previewW * h/w);
   return c;
 }
 
