@@ -83,7 +83,7 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .hidden { display: none !important; }
 
-  @media (max-width: 700px) {
+  @media (max-width: 900px) {
     .app { grid-template-columns: 1fr; height: auto; overflow: visible; }
     .panel { border-right: none; border-bottom: none; max-height: none; overflow: visible; width: 100%; }
     .preview-area { display: none; }
@@ -536,7 +536,7 @@ function renderCanvas() {
 
   // Mobile canvas — fill panel width, render after layout
   const mobileCanvas = document.getElementById('mobileCanvas');
-  if (mobileCanvas && window.innerWidth <= 700) {
+  if (mobileCanvas && window.innerWidth <= 900) {
     setTimeout(() => {
       const mobileW = mobileCanvas.parentElement.clientWidth || (window.innerWidth - 40);
       const { w: srcW2, h: srcH2 } = SIZES[state.ratio];
@@ -793,7 +793,7 @@ function showPreview() {
   document.getElementById('previewLabel').classList.remove('hidden');
   document.getElementById('canvasWrap').classList.remove('hidden');
   // Show mobile inline preview
-  if (window.innerWidth <= 700) {
+  if (window.innerWidth <= 900) {
     document.getElementById('mobilePreview').classList.remove('hidden');
   }
 }
