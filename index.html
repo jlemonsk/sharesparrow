@@ -83,24 +83,18 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .hidden { display: none !important; }
 
-  @media (max-width: 900px) {
-    .app { grid-template-columns: 1fr; height: auto; overflow: visible; }
-    .panel { border-right: none; border-bottom: none; max-height: none; overflow: visible; width: 100%; }
-    .preview-area { display: none; }
-    .tagline { display: none; }
-    header { padding: 10px 16px; }
-    body { overflow-y: auto; height: auto; }
-    #mobilePreview { display: flex !important; }
-    #mobilePreview.hidden { display: none !important; }
+  /* Force single column always, let JS expand for desktop */
+  .app { display: flex; flex-direction: column; flex: 1; min-height: calc(100vh - 61px); }
+  .preview-area { display: none; }
+  .panel { width: 100%; max-width: 100%; border-right: none; padding: 20px 18px; overflow-y: visible; display: flex; flex-direction: column; gap: 18px; }
+
+  /* Desktop override */
+  @media (min-width: 700px) {
+    .app { display: grid; grid-template-columns: 320px 1fr; flex-direction: unset; overflow: hidden; }
+    .preview-area { display: flex; }
+    .panel { border-right: 2px solid var(--border); overflow-y: auto; }
   }
 
-  /* JS-applied mobile class */
-  body.is-mobile .app { grid-template-columns: 1fr; height: auto; overflow: visible; }
-  body.is-mobile .panel { border-right: none; border-bottom: none; max-height: none; overflow: visible; width: 100%; }
-  body.is-mobile .preview-area { display: none; }
-  body.is-mobile .tagline { display: none; }
-  body.is-mobile header { padding: 10px 16px; }
-  body.is-mobile { overflow-y: auto; height: auto; }
   body.is-mobile #mobilePreview { display: flex !important; }
   body.is-mobile #mobilePreview.hidden { display: none !important; }
 </style>
@@ -555,9 +549,9 @@ function renderCanvas() {
   ctx.scale(DPR, DPR);
   drawGraphic(ctx, cssW, cssH);
 
-  // Mobile canvas — fill panel width, render after layout
+  // Mobile canvas — always render
   const mobileCanvas = document.getElementById('mobileCanvas');
-  if (mobileCanvas && checkMobile()) {
+  if (mobileCanvas) {
     setTimeout(() => {
       const mobileW = mobileCanvas.parentElement.clientWidth || (window.innerWidth - 40);
       const { w: srcW2, h: srcH2 } = SIZES[state.ratio];
@@ -813,10 +807,7 @@ function showPreview() {
   document.getElementById('emptyState').classList.add('hidden');
   document.getElementById('previewLabel').classList.remove('hidden');
   document.getElementById('canvasWrap').classList.remove('hidden');
-  // Show mobile inline preview
-  if (checkMobile()) {
-    document.getElementById('mobilePreview').classList.remove('hidden');
-  }
+  document.getElementById('mobilePreview').classList.remove('hidden');
 }
 
 function enableActions() {
