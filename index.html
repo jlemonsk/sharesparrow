@@ -18,7 +18,7 @@
   .logo-text { font-size: 1.3rem; font-weight: 900; color: var(--branch); letter-spacing: -0.02em; }
   .logo-text span { color: var(--sparrow); }
   .tagline { font-size: 0.76rem; color: var(--muted); font-weight: 600; }
-  .app { display: grid; grid-template-columns: 320px 1fr; flex: 1; height: calc(100vh - 61px); overflow: hidden; }
+  .app { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: calc(100vh - 61px); overflow: hidden; }
   .panel { background: var(--cloud); border-right: 2px solid var(--border); padding: 20px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
   .section { display: flex; flex-direction: column; gap: 9px; }
   .section-title { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 7px; }
@@ -82,6 +82,16 @@
   .spinner { width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.65s linear infinite; display: inline-block; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .hidden { display: none !important; }
+
+  @media (max-width: 700px) {
+    .app { grid-template-columns: 1fr; height: auto; overflow: visible; }
+    .panel { border-right: none; border-bottom: 2px solid var(--border); max-height: none; overflow: visible; }
+    .preview-area { padding: 20px 16px; min-height: 60vw; }
+    .canvas-wrap { max-width: 100%; width: 100%; }
+    #previewCanvas { max-width: 100%; width: 100% !important; height: auto !important; }
+    .tagline { display: none; }
+    header { padding: 10px 16px; }
+  }
 </style>
 </head>
 <body>
@@ -243,7 +253,7 @@ const state = {
 
 const SIZES = { '1:1':{w:1080,h:1080}, '4:5':{w:1080,h:1350}, '9:16':{w:1080,h:1920} };
 const DPR = window.devicePixelRatio || 1;
-const PREVIEW_CSS_W = 520;
+const PREVIEW_CSS_W = Math.min(520, window.innerWidth - 48);
 const WORKER_URL = 'https://sharesparrow-avatar.josh-a94.workers.dev';
 const AVATAR_PROXY = WORKER_URL + '/?url=';
 
