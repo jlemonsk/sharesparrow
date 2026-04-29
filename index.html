@@ -18,8 +18,9 @@
   .logo-text { font-size: 1.3rem; font-weight: 900; color: var(--branch); letter-spacing: -0.02em; }
   .logo-text span { color: var(--sparrow); }
   .tagline { font-size: 0.76rem; color: var(--muted); font-weight: 600; }
-  .app { display: grid; grid-template-columns: 320px 1fr; flex: 1; min-height: calc(100vh - 61px); overflow: hidden; }
-  .panel { background: var(--cloud); border-right: 2px solid var(--border); padding: 20px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
+  .app { display: flex; flex-direction: column; flex: 1; min-height: calc(100vh - 61px); overflow: visible; }
+  .panel { background: var(--cloud); border-right: none; padding: 20px 18px; overflow-y: visible; display: flex; flex-direction: column; gap: 18px; width: 100%; max-width: 600px; margin: 0 auto; }
+  .preview-area { display: none; }
   .section { display: flex; flex-direction: column; gap: 9px; }
   .section-title { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 7px; }
   .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
@@ -90,9 +91,10 @@
 
   /* Desktop override */
   @media (min-width: 700px) {
-    .app { display: grid; grid-template-columns: 320px 1fr; flex-direction: unset; overflow: hidden; }
+    .app { display: grid; grid-template-columns: 320px 1fr; flex-direction: unset; overflow: hidden; min-height: calc(100vh - 61px); }
     .preview-area { display: flex; }
-    .panel { border-right: 2px solid var(--border); overflow-y: auto; }
+    .panel { border-right: 2px solid var(--border); overflow-y: auto; max-width: none; margin: 0; }
+    #mobilePreview { display: none !important; }
   }
 
   body.is-mobile #mobilePreview { display: flex !important; }
