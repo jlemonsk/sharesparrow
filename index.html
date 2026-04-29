@@ -149,6 +149,15 @@
 
     <div class="divider"></div>
 
+    <!-- Mobile inline preview — shows after fetch on small screens -->
+    <div class="section hidden" id="mobilePreview">
+      <div class="section-title">Preview</div>
+      <div style="width:100%;line-height:0;border-radius:8px;overflow:hidden;box-shadow:0 8px 32px rgba(44,31,20,0.18);">
+        <canvas id="mobileCanvas" style="width:100%;display:block;"></canvas>
+      </div>
+    </div>
+
+    <div class="divider"></div>
     <div class="section">
       <div class="section-title">Background</div>
       <div class="bg-tabs">
@@ -514,16 +523,30 @@ function renderCanvas() {
   const physW = Math.round(cssW * DPR);
   const physH = Math.round(cssH * DPR);
 
+  // Desktop canvas
   const canvas = document.getElementById('previewCanvas');
   canvas.width = physW;
   canvas.height = physH;
   canvas.style.width = cssW + 'px';
   canvas.style.height = cssH + 'px';
   canvas.style.maxWidth = '100%';
-
   const ctx = canvas.getContext('2d');
   ctx.scale(DPR, DPR);
   drawGraphic(ctx, cssW, cssH);
+
+  // Mobile canvas — fill panel width
+  const mobileCanvas = document.getElementById('mobileCanvas');
+  const mobileW = mobileCanvas.parentElement.clientWidth || 300;
+  const mobileH = Math.round(mobileW * srcH / srcW);
+  const mobilePhysW = Math.round(mobileW * DPR);
+  const mobilePhysH = Math.round(mobileH * DPR);
+  mobileCanvas.width = mobilePhysW;
+  mobileCanvas.height = mobilePhysH;
+  mobileCanvas.style.width = mobileW + 'px';
+  mobileCanvas.style.height = mobileH + 'px';
+  const mCtx = mobileCanvas.getContext('2d');
+  mCtx.scale(DPR, DPR);
+  drawGraphic(mCtx, mobileW, mobileH);
 }
 
 // ── DRAW ─────────────────────────────────────────────────────────
@@ -764,6 +787,10 @@ function showPreview() {
   document.getElementById('emptyState').classList.add('hidden');
   document.getElementById('previewLabel').classList.remove('hidden');
   document.getElementById('canvasWrap').classList.remove('hidden');
+  // Show mobile inline preview
+  if (window.innerWidth <= 700) {
+    document.getElementById('mobilePreview').classList.remove('hidden');
+  }
 }
 
 function enableActions() {
