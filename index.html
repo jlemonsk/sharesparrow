@@ -760,6 +760,9 @@ function showPreview() {
   document.getElementById('emptyState').classList.add('hidden');
   document.getElementById('previewLabel').classList.remove('hidden');
   document.getElementById('canvasWrap').classList.remove('hidden');
+  // Debug — show calculated width
+  const w = getPreviewW();
+  document.getElementById('previewLabel').textContent = `Preview (width: ${w}px, screen: ${window.innerWidth}px)`;
 }
 
 function enableActions() {
