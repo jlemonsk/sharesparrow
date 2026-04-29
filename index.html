@@ -74,7 +74,7 @@
   .panel-footer { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border); font-size: 0.7rem; color: var(--muted); font-weight: 600; text-align: center; line-height: 1.7; }
   .preview-area { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; gap: 16px; overflow: auto; background: repeating-linear-gradient(45deg, transparent, transparent 12px, rgba(0,0,0,0.018) 12px, rgba(0,0,0,0.018) 24px); }
   .preview-label { font-size: 0.65rem; font-weight: 800; letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); }
-  .canvas-wrap { box-shadow: 0 16px 56px rgba(44,31,20,0.22); border-radius: 3px; overflow: hidden; line-height: 0; }
+  .canvas-wrap { box-shadow: 0 16px 56px rgba(44,31,20,0.22); border-radius: 3px; overflow: visible; line-height: 0; }
   #previewCanvas { display: block; }
   .empty-state { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; color: var(--muted); padding: 20px; max-width: 320px; }
   .empty-state h3 { font-size: 1.05rem; font-weight: 800; color: var(--branch); opacity: 0.5; }
@@ -86,11 +86,12 @@
   @media (max-width: 700px) {
     .app { grid-template-columns: 1fr; height: auto; overflow: visible; }
     .panel { border-right: none; border-bottom: 2px solid var(--border); max-height: none; overflow: visible; }
-    .preview-area { padding: 20px 16px; min-height: 60vw; }
-    .canvas-wrap { max-width: 100%; width: 100%; }
-    #previewCanvas { max-width: 100%; width: 100% !important; height: auto !important; }
+    .preview-area { padding: 20px 16px; min-height: auto; overflow: visible; }
+    .canvas-wrap { max-width: 100%; width: 100%; overflow: visible; }
+    #previewCanvas { max-width: 100%; width: 100% !important; height: auto !important; display: block; }
     .tagline { display: none; }
     header { padding: 10px 16px; }
+    body { overflow-y: auto; }
   }
 </style>
 </head>
@@ -514,8 +515,11 @@ function renderCanvas() {
   const physH = Math.round(cssH * DPR);
 
   const canvas = document.getElementById('previewCanvas');
-  canvas.width = physW; canvas.height = physH;
-  canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
+  canvas.width = physW;
+  canvas.height = physH;
+  canvas.style.width = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+  canvas.style.maxWidth = '100%';
 
   const ctx = canvas.getContext('2d');
   ctx.scale(DPR, DPR);
@@ -760,9 +764,6 @@ function showPreview() {
   document.getElementById('emptyState').classList.add('hidden');
   document.getElementById('previewLabel').classList.remove('hidden');
   document.getElementById('canvasWrap').classList.remove('hidden');
-  // Debug — show calculated width
-  const w = getPreviewW();
-  document.getElementById('previewLabel').textContent = `Preview (width: ${w}px, screen: ${window.innerWidth}px)`;
 }
 
 function enableActions() {
