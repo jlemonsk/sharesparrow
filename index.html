@@ -85,13 +85,13 @@
 
   @media (max-width: 700px) {
     .app { grid-template-columns: 1fr; height: auto; overflow: visible; }
-    .panel { border-right: none; border-bottom: 2px solid var(--border); max-height: none; overflow: visible; }
-    .preview-area { padding: 20px 16px; min-height: auto; overflow: visible; }
-    .canvas-wrap { max-width: 100%; width: 100%; overflow: visible; }
-    #previewCanvas { max-width: 100%; width: 100% !important; height: auto !important; display: block; }
+    .panel { border-right: none; border-bottom: none; max-height: none; overflow: visible; width: 100%; }
+    .preview-area { display: none; }
     .tagline { display: none; }
     header { padding: 10px 16px; }
-    body { overflow-y: auto; }
+    body { overflow-y: auto; height: auto; }
+    #mobilePreview { display: flex !important; }
+    #mobilePreview.hidden { display: none !important; }
   }
 </style>
 </head>
@@ -534,19 +534,24 @@ function renderCanvas() {
   ctx.scale(DPR, DPR);
   drawGraphic(ctx, cssW, cssH);
 
-  // Mobile canvas — fill panel width
+  // Mobile canvas — fill panel width, render after layout
   const mobileCanvas = document.getElementById('mobileCanvas');
-  const mobileW = mobileCanvas.parentElement.clientWidth || 300;
-  const mobileH = Math.round(mobileW * srcH / srcW);
-  const mobilePhysW = Math.round(mobileW * DPR);
-  const mobilePhysH = Math.round(mobileH * DPR);
-  mobileCanvas.width = mobilePhysW;
-  mobileCanvas.height = mobilePhysH;
-  mobileCanvas.style.width = mobileW + 'px';
-  mobileCanvas.style.height = mobileH + 'px';
-  const mCtx = mobileCanvas.getContext('2d');
-  mCtx.scale(DPR, DPR);
-  drawGraphic(mCtx, mobileW, mobileH);
+  if (mobileCanvas && window.innerWidth <= 700) {
+    setTimeout(() => {
+      const mobileW = mobileCanvas.parentElement.clientWidth || (window.innerWidth - 40);
+      const { w: srcW2, h: srcH2 } = SIZES[state.ratio];
+      const mobileH = Math.round(mobileW * srcH2 / srcW2);
+      const mobilePhysW = Math.round(mobileW * DPR);
+      const mobilePhysH = Math.round(mobileH * DPR);
+      mobileCanvas.width = mobilePhysW;
+      mobileCanvas.height = mobilePhysH;
+      mobileCanvas.style.width = mobileW + 'px';
+      mobileCanvas.style.height = mobileH + 'px';
+      const mCtx = mobileCanvas.getContext('2d');
+      mCtx.scale(DPR, DPR);
+      drawGraphic(mCtx, mobileW, mobileH);
+    }, 100);
+  }
 }
 
 // ── DRAW ─────────────────────────────────────────────────────────
