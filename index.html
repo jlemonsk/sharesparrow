@@ -93,6 +93,16 @@
     #mobilePreview { display: flex !important; }
     #mobilePreview.hidden { display: none !important; }
   }
+
+  /* JS-applied mobile class */
+  body.is-mobile .app { grid-template-columns: 1fr; height: auto; overflow: visible; }
+  body.is-mobile .panel { border-right: none; border-bottom: none; max-height: none; overflow: visible; width: 100%; }
+  body.is-mobile .preview-area { display: none; }
+  body.is-mobile .tagline { display: none; }
+  body.is-mobile header { padding: 10px 16px; }
+  body.is-mobile { overflow-y: auto; height: auto; }
+  body.is-mobile #mobilePreview { display: flex !important; }
+  body.is-mobile #mobilePreview.hidden { display: none !important; }
 </style>
 </head>
 <body>
@@ -248,6 +258,17 @@
 <canvas id="exportCanvas" style="display:none"></canvas>
 
 <script>
+// ── MOBILE DETECTION ─────────────────────────────────────────────
+function checkMobile() {
+  const isMobile = window.innerWidth <= 900 || 
+    /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+    document.documentElement.clientWidth <= 900;
+  document.body.classList.toggle('is-mobile', isMobile);
+  return isMobile;
+}
+checkMobile();
+window.addEventListener('resize', checkMobile);
+
 // ── PREVENT PAGE-LEVEL DRAG ──────────────────────────────────────
 ['dragenter','dragover','dragleave','drop'].forEach(ev => {
   document.addEventListener(ev, e => {
@@ -536,7 +557,7 @@ function renderCanvas() {
 
   // Mobile canvas — fill panel width, render after layout
   const mobileCanvas = document.getElementById('mobileCanvas');
-  if (mobileCanvas && window.innerWidth <= 900) {
+  if (mobileCanvas && checkMobile()) {
     setTimeout(() => {
       const mobileW = mobileCanvas.parentElement.clientWidth || (window.innerWidth - 40);
       const { w: srcW2, h: srcH2 } = SIZES[state.ratio];
@@ -793,7 +814,7 @@ function showPreview() {
   document.getElementById('previewLabel').classList.remove('hidden');
   document.getElementById('canvasWrap').classList.remove('hidden');
   // Show mobile inline preview
-  if (window.innerWidth <= 900) {
+  if (checkMobile()) {
     document.getElementById('mobilePreview').classList.remove('hidden');
   }
 }
